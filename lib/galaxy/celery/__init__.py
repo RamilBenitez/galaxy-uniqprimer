@@ -172,6 +172,10 @@ def tear_down_pool(sig, how, exitcode, **kwargs):
 def galaxy_task(*args, action=None, **celery_task_kwd):
     if "serializer" not in celery_task_kwd:
         celery_task_kwd["serializer"] = PYDANTIC_AWARE_SERIALIZER_NAME
+    # app/job_submitter are injected by magic_partial on the worker — disable Celery's
+    # pre-send signature check which would reject the call for missing those args.
+    if "typing" not in celery_task_kwd:
+        celery_task_kwd["typing"] = False
 
     def decorate(func: Callable):
         @shared_task(base=GalaxyTask, **celery_task_kwd)
