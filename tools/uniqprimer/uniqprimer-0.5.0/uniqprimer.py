@@ -1,0 +1,353 @@
+#!/usr/bin/env python3
+
+'''
+Created on Jan 1, 2011
+
+@author: John L. Herndon
+@contact: herndon@cs.colostate.edu
+@organization: Colorado State University
+@group: Computer Science Department, Asa Ben-Hur's laboratory
+'''
+
+import sys
+import time
+import os
+import zipfile
+import datetime
+import shutil
+
+import getopt
+from primertools import *
+
+version="0.5.0"
+
+
+class UniqPrimerFinder( object ):
+
+    def __init__( self, includeFiles, excludeFiles, crossValidate, eprimerOptions):
+
+        utils.logMessage( "UniqPrimerFinder::__init__()", "Initializing UniqPrimerFinder" )
+        self.includeFiles = includeFiles
+        self.includeFileManager = includefilemanager.IncludeFileManager( )
+
+        self.excludeFiles = excludeFiles
+        self.excludeFileManager= excludefilemanager.ExcludeFileManager( )
+
+        self.primerManager = primermanager.PrimerManager( eprimerOptions )
+        self.eprimerOptions = eprimerOptions
+
+        self.crossValidate = crossValidate
+
+        utils.logMessage( "UniqPrimerFinder::__init__()", "Initializing UniqPrimerFinder - complete" )
+
+    def writeOutputFile( self, primers, outputFileName, maxresults=100 ):
+        outputFile = open( outputFileName, 'w' )
+        outputFile.write( "ID\tForward\tReverse\tProduct_Size\n" )
+
+        i = 0
+        for primer in primers:
+            i += 1
+            outputFile.write( "{0}\t{1}\t{2}\t{3}\n".format( i, primer.forwardPrimer, primer.reversePrimer, primer.productSize ) )
+            if i >= maxresults:
+                break
+
+        outputFile.close()
+        utils.logMessage( "UniqPrimerFinder::writeOutputFile()", "output file written." )
+
+    def writeHTMLReport( self, primers, outputFileName, elapsedSeconds, includeFiles, excludeFiles ):
+        runDate = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        elapsedMin = int(elapsedSeconds / 60)
+        elapsedSec = int(elapsedSeconds % 60)
+
+        primerRows = ""
+        for i, p in enumerate(primers, 1):
+            bg = "#f9f9f9" if i % 2 == 0 else "#ffffff"
+            primerRows += (
+                "<tr style='background:{bg};'>"
+                "<td style='padding:8px;border:1px solid #ddd;text-align:center;'>{id}</td>"
+                "<td style='padding:8px;border:1px solid #ddd;font-family:monospace;'>{fwd}</td>"
+                "<td style='padding:8px;border:1px solid #ddd;font-family:monospace;'>{rev}</td>"
+                "<td style='padding:8px;border:1px solid #ddd;text-align:center;'>{size}</td>"
+                "</tr>"
+            ).format(bg=bg, id=i, fwd=p.forwardPrimer, rev=p.reversePrimer, size=p.productSize)
+
+        if not primerRows:
+            primerRows = "<tr><td colspan='4' style='padding:12px;text-align:center;color:#c00;'>No primer pairs found.</td></tr>"
+
+        includeList = "".join("<li><code>{}</code></li>".format(os.path.basename(f)) for f in includeFiles)
+        excludeList = "".join("<li><code>{}</code></li>".format(os.path.basename(f)) for f in excludeFiles)
+        cvStatus = "Yes" if self.crossValidate else "No"
+
+        html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>UniqPrimer QC Report</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; margin: 40px; color: #333; }}
+    h1 {{ color: #2c6e49; border-bottom: 2px solid #2c6e49; padding-bottom: 6px; }}
+    h2 {{ color: #2c6e49; margin-top: 30px; }}
+    .badge {{ display:inline-block; padding:3px 10px; border-radius:12px;
+              background:#2c6e49; color:#fff; font-size:0.85em; }}
+    .info-table td {{ padding: 6px 14px; }}
+    .info-table td:first-child {{ font-weight: bold; color: #555; }}
+    table.primers {{ border-collapse: collapse; width: 100%; margin-top:10px; }}
+    table.primers th {{ background:#2c6e49; color:#fff; padding:10px 12px;
+                        border:1px solid #2c6e49; text-align:center; }}
+    ul {{ line-height: 1.8; }}
+    footer {{ margin-top:40px; font-size:0.8em; color:#999; }}
+  </style>
+</head>
+<body>
+  <h1>UniqPrimer v{version} &mdash; QC Report</h1>
+  <p><span class="badge">COMPLETED</span>&nbsp; Run finished at {date}</p>
+
+  <h2>Run Parameters</h2>
+  <table class="info-table">
+    <tr><td>Runtime</td><td>{emin} min {esec} sec</td></tr>
+    <tr><td>Product size range</td><td>{prange}</td></tr>
+    <tr><td>Primer size (optimal)</td><td>{psize}</td></tr>
+    <tr><td>Cross-validation</td><td>{cv}</td></tr>
+    <tr><td>Primer pairs found</td><td><b>{nprimers}</b></td></tr>
+  </table>
+
+  <h2>Input Files</h2>
+  <p><b>Include (target) genomes:</b></p>
+  <ul>{ilist}</ul>
+  <p><b>Exclude (non-target) genomes:</b></p>
+  <ul>{xlist}</ul>
+
+  <h2>Primer Pairs</h2>
+  <table class="primers">
+    <tr>
+      <th>ID</th>
+      <th>Forward Primer (5&#x27;&#x2192;3&#x27;)</th>
+      <th>Reverse Primer (5&#x27;&#x2192;3&#x27;)</th>
+      <th>Product Size (bp)</th>
+    </tr>
+    {rows}
+  </table>
+
+  <footer>Generated by UniqPrimer v{version} | CropGalaxy &mdash; IRRI</footer>
+</body>
+</html>""".format(
+            version=version,
+            date=runDate,
+            emin=elapsedMin,
+            esec=elapsedSec,
+            prange=getattr(self.eprimerOptions, 'productRange', 'N/A'),
+            psize=getattr(self.eprimerOptions, 'primerSize', 'N/A'),
+            cv=cvStatus,
+            nprimers=len(primers),
+            ilist=includeList,
+            xlist=excludeList,
+            rows=primerRows,
+        )
+
+        with open(outputFileName, 'w') as f:
+            f.write(html)
+
+        utils.logMessage("UniqPrimerFinder::writeHTMLReport()", "HTML report written.")
+
+    def createZipArchive( self, zipFileName, primerFile, logFile, fastaFile, htmlFile ):
+        entries = [
+            (primerFile,  "primers.tsv"),
+            (fastaFile,   "sequences_for_primer3.fasta"),
+            (logFile,     "run_log.txt"),
+            (htmlFile,    "qc_report.html"),
+        ]
+        with zipfile.ZipFile(zipFileName, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for src, arcname in entries:
+                if src and os.path.exists(src):
+                    zf.write(src, arcname)
+        utils.logMessage("UniqPrimerFinder::createZipArchive()", "ZIP archive written.")
+
+    def findPrimers(self, outputFile="uPrimer.txt"):
+        outputFile = uPrimer
+
+        utils.logMessage("UniqPrimerFinder::findPrimers()", "Finding primers for include files")
+        startTime = time.time()
+
+        utils.printProgressMessage("*** Creating Combined Fasta File for Exclude Files ***")
+        for excludeFile in self.excludeFiles:
+            self.excludeFileManager.addExcludeFile(excludeFile)
+
+        self.excludeFileManager.exportSequences()
+        self.includeFileManager.setExcludeFile(self.excludeFileManager.getOutputFileName())
+
+        utils.printProgressMessage("*** Finding Sequences Unique to Target Genome ***")
+
+        for includeFile in self.includeFiles:
+            self.includeFileManager.processIncludeFile(includeFile)
+
+        uniqueSequences = self.includeFileManager.getUniqueSequences()
+
+        utils.printProgressMessage("*** Finding Primers ***")
+
+        primers = self.primerManager.getPrimers(uniqueSequences)
+
+        if self.crossValidate == True:
+            utils.printProgressMessage("*** Cross Validating Primers ***")
+            primers = self.primerManager.crossValidatePrimers(primers, self.excludeFileManager.getOutputFileName())
+            j = 0
+            for includeFile in self.includeFiles:
+                j = j + 1
+                primers = self.primerManager.crossValidatePrimers2(primers, includeFile, j)
+
+        utils.logMessage("UniqPrimerFinder::findPrimers()", "found {0} unique sequences".format(len(primers)))
+
+        endTime = time.time()
+        elapsed = endTime - startTime
+
+        self.writeOutputFile(primers, outputFile)
+
+        # Copy fasta to its Galaxy output path now so it is available for the ZIP
+        tmpdir_path = utils.getTemporaryDirectory()
+        fasta_source = os.path.join(tmpdir_path, "sequenceForEprimer.fasta")
+        if fastaDiff and os.path.exists(fasta_source):
+            shutil.copy2(fasta_source, fastaDiff)
+
+        if htmlReport:
+            utils.printProgressMessage("*** Generating HTML QC Report ***")
+            self.writeHTMLReport(primers, htmlReport, elapsed, self.includeFiles, self.excludeFiles)
+
+        if zipArchive:
+            utils.printProgressMessage("*** Creating ZIP Archive ***")
+            self.createZipArchive(zipArchive, outputFile, lf, fastaDiff, htmlReport)
+
+        utils.logMessage("UniqPrimerFinder::findPrimers()", "Finished finding primers")
+        elapsedMinutes = int(elapsed / 60)
+        elapsedSeconds = int(elapsed % 60)
+        print("*** Time Elapsed: {0} minutes, {1} seconds ***".format(elapsedMinutes, elapsedSeconds))
+        print("*** Output Written to {0} ***".format(outputFile))
+
+
+def printUsageAndQuit( ):
+    global version
+    print("uniqprimer - finds primers unique to a genome")
+    print("Version: " + str( version ))
+    print("Summary of Options.")
+    print("Required Arguments:")
+    print(" -i <filename>: use <filename> as an include file.")
+    print(" -x <filename>: use <filename> as an exclude file.")
+    print(" -o <filename>: specify the name of the unique primer output file (default is uPrimer.txt)")
+    print(" -l <filename>: specify the name of the log output file")
+    print(" -f <filename>: specify the name of the Fasta of differential sequences")
+    print(" -r <filename>: specify the name of the HTML QC report output file")
+    print(" -z <filename>: specify the name of the ZIP archive output file")
+    print("\nOptional Arguments:")
+    print(" --productsizerange: set a range for the desired size of PCR product (default=200-250)")
+    print(" --primersize: set the desired primer size (default=20)")
+    print(" --minprimersize: set the minimum primer size (default=27)")
+    print(" --maxprimersize: set the maximum primer size (default=18)")
+    print(" --crossvalidate: cross validate primers against exclude files")
+    print(" --keeptempfiles: keep temporary files")
+    print("\nExample:")
+    print("uniqprimer -i include.fasta -x exclude.fasta -o primers.txt -l log.txt -f seq.fa -r report.html -z outputs.zip")
+    utils.shutdownLogging( )
+    sys.exit( )
+
+
+opts = 'i:x:h:o:l:f:r:z:'
+longopts = ["productsizerange=", "primersize=", "minprimersize=", "maxprimersize=", "crossvalidate", "keeptempfiles"]
+
+def parseArgs( args ):
+    global uPrimer, lf, fastaDiff, htmlReport, zipArchive
+
+    crossValidate = False
+    cleanup = True
+    optlist, args = getopt.getopt( args, opts, longopts )
+
+    includeFiles = []
+    excludeFiles = []
+    eprimerOptions = utils.EPrimerOptions()
+
+    verbose = False
+    for opt in optlist:
+        if opt[0] == '-i':
+            includeFiles.append( opt[1] )
+        elif opt[0] == '-x':
+            excludeFiles.append( opt[1] )
+        elif opt[0] == '-v':
+            verbose = True
+        elif opt[0] == '-o':
+            uPrimer = str(opt[1])
+        elif opt[0] == '-l':
+            lf = str(opt[1])
+        elif opt[0] == '-f':
+            fastaDiff = str(opt[1])
+        elif opt[0] == '-r':
+            htmlReport = str(opt[1])
+        elif opt[0] == '-z':
+            zipArchive = str(opt[1])
+        elif opt[0] == '--productsizerange':
+            eprimerOptions.setProductRange( opt[1] )
+        elif opt[0] == '--primersize':
+            eprimerOptions.setPrimerSize( opt[1] )
+        elif opt[0] == '--minprimersize':
+            eprimerOptions.setMinPrimerSize( opt[1] )
+        elif opt[0] == '--maxprimersize':
+            eprimerOptions.setMaxPrimerSize( opt[1] )
+        elif opt[0] == '--crossvalidate':
+            crossValidate = True
+        elif opt[0] == '--keeptempfiles':
+            cleanup = False
+        elif opt[0] == '-h':
+            printUsageAndQuit()
+        else:
+            print("Unknown option: " + str( opt[0] ))
+            printUsageAndQuit()
+
+    if len( includeFiles ) == 0 or len( excludeFiles ) == 0:
+        print("You must specify at least one include file and at least one exclude file")
+        printUsageAndQuit()
+
+    return includeFiles, excludeFiles, crossValidate, cleanup, verbose, eprimerOptions, lf, uPrimer, fastaDiff
+
+
+def main( args, debug=False ):
+    global uPrimer, lf, fastaDiff, htmlReport, zipArchive
+
+    includeFiles, excludeFiles, crossValidate, cleanup, verbose, eprimerOptions, lf, uPrimer, fastaDiff = parseArgs( args )
+    utils.initialize( True, cleanup, lf )
+
+    tmpdir = utils.getTemporaryDirectory()
+
+    try:
+        utils.logMessage( "uniqprimer::Main( )", "Logging include files: " )
+        utils.logList( "uniqprimer::Main( )", includeFiles )
+        utils.logMessage( "uniqprimer::Main( )", "Logging exclude files: " )
+        utils.logList( "uniqprimer::Main( )", excludeFiles )
+        print("*** Finding Primers ***")
+        uniqPrimer = UniqPrimerFinder( includeFiles, excludeFiles, crossValidate, eprimerOptions )
+        uniqPrimer.findPrimers()
+    except utils.NoFileFoundException as nfe:
+        print("File not found: " + str( nfe.filename ))
+        printUsageAndQuit()
+    except utils.ProgramNotFoundException as pnfe:
+        print(str( pnfe.programName ) + ": program is not installed or is not in your path.")
+        print(str( pnfe.details ))
+    except utils.NoPrimersExistException as npe:
+        print("Failure: No unique primers exist for this combination")
+    except Exception as e:
+        print("An unexpected error occurred.")
+        print("Details:")
+        print(e)
+
+    os.system("cp -rf " + tmpdir + "/sequenceForEprimer.fasta" + " " + fastaDiff)
+    utils.shutdown()
+
+    print("*** Finished ***")
+
+
+if __name__ == '__main__':
+    if len( sys.argv ) == 1:
+        printUsageAndQuit()
+
+    uPrimer = "uPrimer.txt"
+    lf = "log_uniqprimer.txt"
+    fastaDiff = "seqForPrimer3.fa"
+    htmlReport = ""
+    zipArchive = ""
+
+    main( sys.argv[1:], debug=True )

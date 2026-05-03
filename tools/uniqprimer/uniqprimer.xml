@@ -1,0 +1,79 @@
+<tool id="uniqprimer" name="Uniqprimer" version="0.5.0">
+	<description>Design specific primers of sequences</description>
+	<requirements>
+		<requirement type="package" version="6.5.7">emboss</requirement>
+		<requirement type="package" version="3.23">mummer</requirement>
+		<requirement type="package" version="1.1.4">primer3</requirement>
+		<container type="docker">volture2721/uniqprimer:0.5.0</container>
+	</requirements>
+	<command><![CDATA[
+		$__tool_directory__/uniqprimer.sh $include $exclude $product_size_range $primer_size $min_size $max_size $crossvalidate $outfile $log $fasta $report $archive
+		#for $i in $inputs
+			-i ${i.input}
+		#end for
+		#for $e in $excludes
+			-x ${e.excl}
+		#end for
+	]]></command>
+	<inputs>
+		<param format="fasta" name="include" type="data" label="FASTA file to include" help="Sequences for which you want to design specific primers"/>
+		<repeat name="inputs" title="Include FASTA file">
+			<param name="input" label="Add FASTA file to include" type="data" format="fasta" />
+		</repeat>
+		<param format="fasta" name="exclude" type="data" label="FASTA file to exclude" help="Primers will not match these sequences"/>
+		<repeat name="excludes" title="Exclude FASTA file">
+			<param name="excl" label="Add FASTA file to exclude" type="data" format="fasta" help="Add additional non-target genomes to exclude"/>
+		</repeat>
+		<param type="text" name="product_size_range" label="Product size range" value="100-300"/>
+		<param type="text" name="primer_size" label="Optimal primer size" value="20"/>
+		<param type="text" name="min_size" label="Min primer size" value="18"/>
+		<param type="text" name="max_size" label="Max primer size" value="27"/>
+		<param name="crossvalidate" type="select" label="Cross validate primers against exclude files for extra certainty">
+			<option value="Yes">Yes</option>
+			<option value="No">No</option>
+		</param>
+	</inputs>
+	<outputs>
+		<data format="txt"  name="outfile" label="Primer list"/>
+		<data format="fasta" name="fasta"  label="Fasta for Primer3"/>
+		<data format="txt"  name="log"    label="Logfile"/>
+		<data format="html" name="report" label="QC Report"/>
+		<data format="zip"  name="archive" label="All outputs (ZIP)"/>
+	</outputs>
+	<help>
+
+.. class:: infomark
+
+**Program encapsulated in Galaxy by IRRI (International Rice Research Institute) and South Green bioinformatics platform**
+
+.. class:: infomark
+
+**UniqPrimer version 0.5.0**
+
+-----
+
+==============
+ Please cite:
+==============
+
+Karim et al. (2019). Development of the automated primer design workflow UniqPrimer and diagnostic primers for the broad-host-range plant pathogen Dickeya dianthicola. Plant Disease, 103(10), 2893-2903.
+
+-----
+
+===========
+ Overview:
+===========
+
+Uniqprimer designs specific primers of sequences. The goal of this tool is to accept a number of "include" FASTA files of diagnostic target genomes (draft or complete) and "exclude" files of non-target genomes, and output a list of PCR primers that will amplify target genomes but not non-target genomes.
+
+**Outputs:**
+
+- **Primer list** — tab-separated table with columns: ID, Forward, Reverse, Product_Size
+- **Fasta for Primer3** — FASTA file of unique sequences used for primer design
+- **Logfile** — full run log
+- **QC Report** — HTML quality control report with run summary and primer table
+- **All outputs (ZIP)** — ZIP archive containing all four output files
+
+	</help>
+
+</tool>
