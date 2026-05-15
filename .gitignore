@@ -57,7 +57,6 @@ reports_wsgi.ini
 reports.ini
 tool_shed_wsgi.ini
 datatypes_conf.xml
-tool_conf.xml
 external_service_types_conf.xml
 migrated_tools_conf.xml
 shed_tool_conf.xml
@@ -73,6 +72,8 @@ object_store_conf.xml
 job_metrics_conf.xml
 workflow_schedulers_conf.xml
 config/*
+!config/galaxy.yml
+!config/tool_conf.xml
 config/plugins/interactive_environments/**/*.ini
 config/plugins/**/.cache
 config/plugins/**/.parcel-cache
