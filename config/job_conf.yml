@@ -1,0 +1,19 @@
+runners:
+  local:
+    load: galaxy.jobs.runners.local:LocalJobRunner
+    workers: 4
+
+execution:
+  default: docker_local
+  environments:
+    local:
+      runner: local
+    docker_local:
+      runner: local
+      docker_enabled: true
+      docker_auto_rm: true
+      docker_sudo: false
+
+tools:
+- id: uniqprimer
+  environment: docker_local
