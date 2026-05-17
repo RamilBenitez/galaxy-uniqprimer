@@ -1,0 +1,5 @@
+import{d as i,n as o}from"./galaxy-app-BOtlnzD4.js";const c=i({__name:"BreadcrumbNavigation",props:{items:null},emits:["navigate"],setup(s,{emit:e}){function t(r){r!==void 0&&e("navigate",r)}return{__sfc:!0,emit:e,handleNavigate:t}}});var _=function(){var e=this,t=e._self._c,r=e._self._setupProxy;return t("nav",{staticClass:"breadcrumb-nav",attrs:{"aria-label":"breadcrumb"}},[e._l(e.items,function(n,a){return[a<e.items.length-1?t("button",{directives:[{name:"g-tooltip",rawName:"v-g-tooltip.hover",modifiers:{hover:!0}}],key:`link-${a}`,staticClass:"breadcrumb-link",attrs:{title:`Navigate to ${n.title}`},on:{click:function(v){return r.handleNavigate(n.index)}}},[e._v(`
+            `+e._s(n.title)+`
+        `)]):t("span",{key:`current-${a}`,staticClass:"breadcrumb-current-label",attrs:{"aria-current":"page"}},[e._v(`
+            `+e._s(n.title)+`
+        `)]),e._v(" "),a<e.items.length-1?t("span",{key:`sep-${a}`,staticClass:"breadcrumb-separator"},[e._v(" / ")]):e._e()]})],2)},l=[],u=o(c,_,l,!1,null,"3fde15f7");const p=u.exports;export{p as B};
