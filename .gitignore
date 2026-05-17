@@ -33,6 +33,20 @@ lib/galaxy/web/framework/meta.json
 *.pid
 celerybeat-schedule
 
+# UniqPrimer run artifacts (nucmer/primer3 outputs from test runs)
+tools/uniqprimer/uniqprimer-0.5.0/*.delta
+tools/uniqprimer/uniqprimer-0.5.0/*.coords
+tools/uniqprimer/uniqprimer-0.5.0/data/*.delta
+tools/uniqprimer/uniqprimer-0.5.0/log
+tools/uniqprimer/uniqprimer-0.5.0/logfile
+tools/uniqprimer/uniqprimer-0.5.0/logfile.txt
+tools/uniqprimer/uniqprimer-0.5.0/stdout
+tools/uniqprimer/uniqprimer-0.5.0/outalex
+tools/uniqprimer/uniqprimer-0.5.0/output
+tools/uniqprimer/uniqprimer-0.5.0/outfile.txt
+tools/uniqprimer/uniqprimer-0.5.0/primers.txt
+tools/uniqprimer/uniqprimer-0.5.0/seqForPrimer3.fa
+
 # Celery state files
 celerybeat-schedule.*
 
